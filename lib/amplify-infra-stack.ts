@@ -6,6 +6,7 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as apigw from 'aws-cdk-lib/aws-apigateway';
 import * as path from 'path';
+import * as s3 from 'aws-cdk-lib/aws-s3';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 
 export class AmplifyInfraStack extends Stack {
@@ -21,6 +22,22 @@ export class AmplifyInfraStack extends Stack {
       logRetention: logs.RetentionDays.ONE_DAY
     });
   
+    const bucket = new s3.Bucket(this, 'Uploads bucket', {
+      accessControl: s3.BucketAccessControl.PUBLIC_READ_WRITE,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
+      versioned: false,
+      publicReadAccess: false,
+      objectOwnership: s3.ObjectOwnership.BUCKET_OWNER_PREFERRED,  // Required if public upload - make sure we own the object!
+      cors: [
+        {
+          allowedMethods: [ s3.HttpMethods.GET, s3.HttpMethods.POST, s3.HttpMethods.HEAD, s3.HttpMethods.PUT ],
+          allowedOrigins: [ '*' ],
+          allowedHeaders: [ '*' ]
+        }
+      ]
+    });
+
     const restApi = new apigw.RestApi(this, 'hello-api', {
       defaultCorsPreflightOptions: {
         allowOrigins: apigw.Cors.ALL_ORIGINS,
@@ -42,7 +59,8 @@ export class AmplifyInfraStack extends Stack {
         // Note this turns into REACT_APP_ENDPOINT in the react app itself.
         // Need to add these in the environment vars of amplify.yml
         ENDPOINT: restApi.url,
-        REGION: this.region
+        REGION: this.region,
+        BUCKET: bucket.bucketName
       }
     });
 
